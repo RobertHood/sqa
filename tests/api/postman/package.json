@@ -1,0 +1,12 @@
+{
+  "name": "postman-tests",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "node run_tests.js",
+    "test:folder": "node run_tests.js --folder"
+  },
+  "dependencies": {
+    "newman": "^6.2.1"
+  }
+}

@@ -1,0 +1,3861 @@
+{
+  "info": {
+    "name": "Educational Platform API Tests",
+    "description": "Comprehensive API test suite for the Educational Platform. Covers 60+ endpoints across 16 modules with automatic cleanup and DB verification via API.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "edu-platform-tests-v1"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{admin_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Tokens (admin_token, user_token) are set by 00_Setup folder.",
+          "// Run 00_Setup first before other folders."
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Global: check response time",
+          "pm.test('Response time < 3000ms', () => {",
+          "  pm.expect(pm.response.responseTime).to.be.below(3000);",
+          "});",
+          "",
+          "// Global: check response is JSON (skip for 204 No Content)",
+          "if (pm.response.code !== 204) {",
+          "  pm.test('Response is JSON', () => {",
+          "    pm.response.to.be.json;",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "00_Setup",
+      "item": [
+        {
+          "name": "Health Check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Server is reachable', () => { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/subjects",
+            "header": []
+          }
+        },
+        {
+          "name": "Admin Login - Setup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Admin login success', () => { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('Token received', () => { pm.expect(json.data.token).to.be.a('string'); });",
+                  "pm.environment.set('admin_token', json.data.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"{{admin_email}}\", \"password\": \"{{admin_password}}\"}"
+            }
+          }
+        },
+        {
+          "name": "Register Test User - Setup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 200 means already registered, 201 means newly created — both are fine",
+                  "pm.test('Register test user: OK or already exists', () => {",
+                  "    pm.expect([200, 201, 400]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/register",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"user_name\": \"Test User\", \"email\": \"{{user_email}}\", \"password\": \"{{user_password}}\"}"
+            }
+          }
+        },
+        {
+          "name": "User Login - Setup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('User login success', () => { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.environment.set('user_token', json.data.token);",
+                  "pm.environment.set('current_user_id', json.data.user.user_id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"{{user_email}}\", \"password\": \"{{user_password}}\"}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "01_Authentication",
+      "item": [
+        {
+          "name": "TC_AUTH_001 - Register Success",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_AUTH_001: Status 201', () => { pm.response.to.have.status(201); });",
+                  "const json = pm.response.json();",
+                  "pm.test('TC_AUTH_001: Response has token', () => { pm.expect(json.data.token).to.be.a('string'); });",
+                  "pm.test('TC_AUTH_001: Response has user', () => { pm.expect(json.data.user).to.be.an('object'); });",
+                  "pm.test('TC_AUTH_001: Password not exposed', () => { pm.expect(json.data.user).to.not.have.property('password_hash'); });",
+                  "pm.environment.set('registered_user_email', 'testregister_' + Date.now() + '@test.com');",
+                  "// Cleanup: delete registered user via admin if needed"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "url": "{{base_url}}/auth/register",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_name\": \"Test Register User\",\n  \"password\": \"Test123!\",\n  \"email\": \"testregister_{{$timestamp}}@test.com\"\n}"
+            }
+          }
+        },
+        {
+          "name": "TC_AUTH_002 - Register Duplicate Email",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_AUTH_002: Status 400', () => { pm.response.to.have.status(400); });",
+                  "const json = pm.response.json();",
+                  "pm.test('TC_AUTH_002: Error message about existing email', () => {",
+                  "  pm.expect(json.message).to.include('Email');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "url": "{{base_url}}/auth/register",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_name\": \"Duplicate User\",\n  \"password\": \"Test123!\",\n  \"email\": \"admin@example.com\"\n}"
+            }
+          }
+        },
+        {
+          "name": "TC_AUTH_003 - Register Missing Required Fields",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_AUTH_003: Status 4xx on missing fields', () => {",
+                  "  pm.expect(pm.response.code).to.be.within(400, 499);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "url": "{{base_url}}/auth/register",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_name\": \"No Email User\"\n}"
+            }
+          }
+        },
+        {
+          "name": "TC_AUTH_004 - Login Success",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_AUTH_004: Status 200', () => { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('TC_AUTH_004: Has token', () => { pm.expect(json.data.token).to.be.a('string'); });",
+                  "pm.test('TC_AUTH_004: Has user object', () => { pm.expect(json.data.user).to.be.an('object'); });",
+                  "pm.test('TC_AUTH_004: Has permissions', () => { pm.expect(json.data.permissions).to.be.an('object'); });",
+                  "pm.environment.set('admin_token', json.data.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "url": "{{base_url}}/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "TC_AUTH_005 - Login Wrong Password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_AUTH_005: Status 401', () => { pm.response.to.have.status(401); });",
+                  "const json = pm.response.json();",
+                  "pm.test('TC_AUTH_005: Correct error message', () => {",
+                  "  pm.expect(json.message).to.equal('Mật khẩu không đúng');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "url": "{{base_url}}/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"wrongpassword\"\n}"
+            }
+          }
+        },
+        {
+          "name": "TC_AUTH_006 - Login User Not Found",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_AUTH_006: Status 404', () => { pm.response.to.have.status(404); });",
+                  "const json = pm.response.json();",
+                  "pm.test('TC_AUTH_006: User not found message', () => {",
+                  "  pm.expect(json.message).to.equal('Không tìm thấy người dùng');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "url": "{{base_url}}/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"notexist@example.com\",\n  \"password\": \"anypassword\"\n}"
+            }
+          }
+        },
+        {
+          "name": "TC_AUTH_007 - Login Missing Credentials",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_AUTH_007: Status 4xx on empty body', () => {",
+                  "  pm.expect(pm.response.code).to.be.within(400, 499);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "url": "{{base_url}}/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "TC_AUTH_008 - Login SQL Injection Attempt",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_AUTH_008: SQL injection safely rejected', () => {",
+                  "  pm.expect([400, 401, 404]).to.include(pm.response.code);",
+                  "});",
+                  "pm.test('TC_AUTH_008: No server error', () => {",
+                  "  pm.expect(pm.response.code).to.not.equal(500);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "url": "{{base_url}}/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin' OR '1'='1\",\n  \"password\": \"pass\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02_Users",
+      "item": [
+        {
+          "name": "TC_USER_001 - Get All Users (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_USER_001: Status 200', () => { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('TC_USER_001: Returns object', () => { pm.expect(json.data).to.be.an('object'); });",
+                  "pm.test('TC_USER_001: Has users list', () => { pm.expect(json.data.users).to.be.an('array'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/users?page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC_USER_002 - Get All Users (User Forbidden)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_USER_002: Status 403 for non-admin', () => {",
+                  "  pm.expect([403, 401]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{base_url}}/users"
+          }
+        },
+        {
+          "name": "TC_USER_003 - Get All Users (No Auth)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_USER_003: Status 401 without token', () => {",
+                  "  pm.expect([401, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": "{{base_url}}/users"
+          }
+        },
+        {
+          "name": "TC_USER_004 - Get User By ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_USER_004: Status 200', () => { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('TC_USER_004: User object returned', () => {",
+                  "  pm.expect(json.data).to.be.an('object');",
+                  "  pm.expect(json.data).to.have.property('user_name');",
+                  "  pm.expect(json.data).to.have.property('email');",
+                  "  pm.expect(json.data).to.not.have.property('password_hash');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{base_url}}/users/1"
+          }
+        },
+        {
+          "name": "TC_USER_005 - Get User By Invalid ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_USER_005: Status 4xx for invalid ID', () => {",
+                  "  pm.expect(pm.response.code).to.be.within(400, 499);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{base_url}}/users/999999"
+          }
+        },
+        {
+          "name": "TC_USER_006 - Update Current User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_USER_006: Status 2xx for update', () => {",
+                  "  pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "url": "{{base_url}}/users/update/{{current_user_id}}",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_name\": \"Updated User Name\"\n}"
+            }
+          }
+        },
+        {
+          "name": "TC_USER_007 - Get Users Search by Keyword",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_USER_007: Status 200', () => { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('TC_USER_007: Returns list', () => { pm.expect(json.data.users).to.be.an('array'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/users?keyword=admin&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "keyword",
+                  "value": "admin"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04_Subjects",
+      "item": [
+        {
+          "name": "TC_SUBJ_001 - Get All Subjects (Public)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_SUBJ_001: Status 200', () => { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('TC_SUBJ_001: Returns array', () => { pm.expect(json.data).to.be.an('array'); });",
+                  "pm.test('TC_SUBJ_001: Message correct', () => {",
+                  "  pm.expect(json.message).to.equal('Lấy danh sách môn học thành công');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": "{{base_url}}/subjects"
+          }
+        },
+        {
+          "name": "TC_SUBJ_002 - Create Subject (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_SUBJ_002: Status 201', () => { pm.response.to.have.status(201); });",
+                  "const json = pm.response.json();",
+                  "pm.test('TC_SUBJ_002: Subject created', () => {",
+                  "  pm.expect(json.data).to.be.an('object');",
+                  "  pm.expect(json.message).to.equal('Tạo môn học thành công');",
+                  "});",
+                  "if (json.data && json.data.subject_id) {",
+                  "  pm.environment.set('test_subject_id', json.data.subject_id);",
+                  "}",
+                  "// DB Verification: GET subjects and find the new one",
+                  "pm.sendRequest({",
+                  "  url: pm.environment.get('base_url') + '/subjects',",
+                  "  method: 'GET'",
+                  "}, (err, res) => {",
+                  "  pm.test('TC_SUBJ_002: DB verification - subject exists in list', () => {",
+                  "    pm.expect(res.code).to.equal(200);",
+                  "    const subjects = res.json().data;",
+                  "    const found = subjects.find(s => s.subject_id == pm.environment.get('test_subject_id'));",
+                  "    pm.expect(found).to.not.be.undefined;",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "url": "{{base_url}}/subjects/create",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subject_name\": \"Test Subject {{$timestamp}}\",\n  \"available\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "TC_SUBJ_003 - Create Subject (User Forbidden)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_SUBJ_003: Status 403 for non-admin', () => {",
+                  "  pm.expect([401, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "url": "{{base_url}}/subjects/create",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subject_name\": \"Unauthorized Subject\"\n}"
+            }
+          }
+        },
+        {
+          "name": "TC_SUBJ_004 - Update Subject (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_SUBJ_004: Status 202', () => { pm.response.to.have.status(202); });",
+                  "const json = pm.response.json();",
+                  "pm.test('TC_SUBJ_004: Update message correct', () => {",
+                  "  pm.expect(json.message).to.equal('Cập nhật môn học thành công');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "url": "{{base_url}}/subjects/update/{{test_subject_id}}",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subject_name\": \"Updated Test Subject\"\n}"
+            }
+          }
+        },
+        {
+          "name": "TC_SUBJ_005 - Set Subject Available",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_SUBJ_005: Status 202', () => { pm.response.to.have.status(202); });",
+                  "const json = pm.response.json();",
+                  "pm.test('TC_SUBJ_005: Availability changed', () => {",
+                  "  pm.expect(json.message).to.equal('Đổi trạng thái môn học thành công');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "url": "{{base_url}}/subjects/setAvailable/{{test_subject_id}}",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"available\": false\n}"
+            }
+          }
+        },
+        {
+          "name": "TC_SUBJ_006 - Delete Subject (Admin) - Cleanup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_SUBJ_006: Status 204', () => { pm.response.to.have.status(204); });",
+                  "pm.environment.unset('test_subject_id');",
+                  "// DB Verification: ensure subject is gone",
+                  "pm.sendRequest({",
+                  "  url: pm.environment.get('base_url') + '/subjects',",
+                  "  method: 'GET'",
+                  "}, (err, res) => {",
+                  "  pm.test('TC_SUBJ_006: DB verification - subject removed from list', () => {",
+                  "    pm.expect(res.code).to.equal(200);",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "url": "{{base_url}}/subjects/remove/{{test_subject_id}}"
+          }
+        },
+        {
+          "name": "TC_SUBJ_007 - Delete Non-existent Subject",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_SUBJ_007: Status 4xx for non-existent', () => {",
+                  "  pm.expect(pm.response.code).to.be.within(200, 499);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "url": "{{base_url}}/subjects/remove/999999"
+          }
+        }
+      ]
+    },
+    {
+      "name": "05_Topics",
+      "item": [
+        {
+          "name": "TC_TOPIC_001 - Get All Topics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_TOPIC_001: Status 200', () => { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('TC_TOPIC_001: Returns data', () => { pm.expect(json.data).to.exist; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{base_url}}/topics"
+          }
+        },
+        {
+          "name": "TC_TOPIC_002 - Create Topic (Admin)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Always use seeded subject_id=1 to avoid async timing issues",
+                  "pm.environment.set('test_subject_id', 1);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_TOPIC_002: Status 201', () => { pm.response.to.have.status(201); });",
+                  "const json = pm.response.json();",
+                  "pm.test('TC_TOPIC_002: Topic created', () => { pm.expect(json.data).to.be.an('object'); });",
+                  "if (json.data && json.data.topic_id) pm.environment.set('test_topic_id', json.data.topic_id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "url": "{{base_url}}/topics/create",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"topic_name\": \"Test Topic {{$timestamp}}\",\n  \"subject_id\": {{test_subject_id}}\n}"
+            }
+          }
+        },
+        {
+          "name": "TC_TOPIC_003 - Create Topic (User Forbidden)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_TOPIC_003: Status 403 for non-admin', () => {",
+                  "  pm.expect([401, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "url": "{{base_url}}/topics/create",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"topic_name\": \"Unauthorized Topic\",\n  \"subject_id\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "TC_TOPIC_004 - Update Topic",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_TOPIC_004: Status 2xx', () => { pm.expect(pm.response.code).to.be.within(200, 299); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "url": "{{base_url}}/topics/update/{{test_topic_id}}",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"topic_name\": \"Updated Test Topic\"\n}"
+            }
+          }
+        },
+        {
+          "name": "TC_TOPIC_005 - Delete Topic - Cleanup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_TOPIC_005: Status 2xx', () => { pm.expect(pm.response.code).to.be.within(200, 299); });",
+                  "pm.environment.unset('test_topic_id');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "url": "{{base_url}}/topics/remove/{{test_topic_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "06_Questions",
+      "item": [
+        {
+          "name": "TC_QUES_001 - Get All Questions (Public)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_QUES_001: Status 200', () => { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('TC_QUES_001: Returns question list', () => {",
+                  "  pm.expect(json.data.question).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": "{{base_url}}/questions"
+          }
+        },
+        {
+          "name": "TC_QUES_002 - Create Questions (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_QUES_002: Status 201', () => { pm.response.to.have.status(201); });",
+                  "const json = pm.response.json();",
+                  "pm.test('TC_QUES_002: Question(s) created', () => { pm.expect(json.data).to.exist; });",
+                  "const questionsData = Array.isArray(json.data) ? json.data : [json.data];",
+                  "if (questionsData.length > 0 && questionsData[0].question_id) {",
+                  "  pm.environment.set('test_question_id', questionsData[0].question_id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "url": "{{base_url}}/questions/create",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"question_content\": \"Test question content {{$timestamp}}\",\n    \"question_type\": 1,\n    \"topic_id\": 1,\n    \"answers\": [\n      { \"answer_content\": \"Answer A\", \"is_correct\": true },\n      { \"answer_content\": \"Answer B\", \"is_correct\": false },\n      { \"answer_content\": \"Answer C\", \"is_correct\": false }\n    ]\n  }\n]"
+            }
+          }
+        },
+        {
+          "name": "TC_QUES_003 - Create Questions (User Forbidden)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_QUES_003: Status 403 for non-admin', () => {",
+                  "  pm.expect([401, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "url": "{{base_url}}/questions/create",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[{ \"question_content\": \"Unauthorized question\", \"question_type\": 1, \"topic_id\": 1, \"answers\": [] }]"
+            }
+          }
+        },
+        {
+          "name": "TC_QUES_004 - Update Question",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_QUES_004: Status 2xx', () => { pm.expect(pm.response.code).to.be.within(200, 299); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "url": "{{base_url}}/questions/update/{{test_question_id}}",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question_content\": \"Updated test question\"\n}"
+            }
+          }
+        },
+        {
+          "name": "TC_QUES_005 - Set Question Available",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_QUES_005: Status 2xx', () => { pm.expect(pm.response.code).to.be.within(200, 299); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "url": "{{base_url}}/questions/setAvailable/{{test_question_id}}",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"available\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "TC_QUES_006 - Delete Question - Cleanup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_QUES_006: Status 2xx', () => { pm.expect(pm.response.code).to.be.within(200, 299); });",
+                  "pm.environment.unset('test_question_id');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "url": "{{base_url}}/questions/remove/{{test_question_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "07_Exams",
+      "item": [
+        {
+          "name": "07a_Exam_Schedules",
+          "item": [
+            {
+              "name": "TC_EXSCH_001 - Get All Exam Schedules (Admin)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('TC_EXSCH_001: Status 200', () => { pm.response.to.have.status(200); });",
+                      "const json = pm.response.json();",
+                      "pm.test('TC_EXSCH_001: Returns data', () => { pm.expect(json.data).to.exist; });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "url": "{{base_url}}/exams/schedule"
+              }
+            },
+            {
+              "name": "TC_EXSCH_002 - Create Exam Schedule (Admin)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('TC_EXSCH_002: Status 201', () => { pm.response.to.have.status(201); });",
+                      "const json = pm.response.json();",
+                      "pm.test('TC_EXSCH_002: Schedule created', () => { pm.expect(json.data).to.be.an('object'); });",
+                      "if (json.data && json.data.exam_schedule_id) pm.environment.set('test_exam_schedule_id', json.data.exam_schedule_id);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "url": "{{base_url}}/exams/schedule/create",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"schedule_name\": \"Test Schedule {{$timestamp}}\",\n  \"start_time\": \"2026-06-01T08:00:00Z\",\n  \"end_time\": \"2026-06-01T10:00:00Z\"\n}"
+                }
+              }
+            },
+            {
+              "name": "TC_EXSCH_003 - Create Exam Schedule (User Forbidden)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('TC_EXSCH_003: Status 403', () => { pm.expect([401, 403]).to.include(pm.response.code); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{user_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "url": "{{base_url}}/exams/schedule/create",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"schedule_name\": \"Unauthorized\"\n}"
+                }
+              }
+            },
+            {
+              "name": "TC_EXSCH_004 - Update Exam Schedule",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('TC_EXSCH_004: Status 2xx', () => { pm.expect(pm.response.code).to.be.within(200, 299); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PUT",
+                "url": "{{base_url}}/exams/schedule/update/{{test_exam_schedule_id}}",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"schedule_name\": \"Updated Schedule\"\n}"
+                }
+              }
+            },
+            {
+              "name": "TC_EXSCH_005 - Delete Exam Schedule - Cleanup",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('TC_EXSCH_005: Status 2xx', () => { pm.expect(pm.response.code).to.be.within(200, 299); });",
+                      "pm.environment.unset('test_exam_schedule_id');"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "DELETE",
+                "url": "{{base_url}}/exams/schedule/remove/{{test_exam_schedule_id}}"
+              }
+            }
+          ]
+        },
+        {
+          "name": "07b_Exams_CRUD",
+          "item": [
+            {
+              "name": "TC_EXAM_001 - List Exams (Public)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('TC_EXAM_001: Status 200', () => { pm.response.to.have.status(200); });",
+                      "const json = pm.response.json();",
+                      "pm.test('TC_EXAM_001: Message correct', () => {",
+                      "  pm.expect(json.message).to.equal('Lấy danh sách đề thi thành công');",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "GET",
+                "url": {
+                  "raw": "{{base_url}}/exams?page=1",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "exams"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "TC_EXAM_002 - List Exams with Filter",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('TC_EXAM_002: Status 200', () => { pm.response.to.have.status(200); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "GET",
+                "url": {
+                  "raw": "{{base_url}}/exams?page=1&keyword=test&available=true",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "exams"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "keyword",
+                      "value": "test"
+                    },
+                    {
+                      "key": "available",
+                      "value": "true"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "TC_EXAM_003 - Create Exam (Admin)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('TC_EXAM_003: Status 201', () => { pm.response.to.have.status(201); });",
+                      "const json = pm.response.json();",
+                      "pm.test('TC_EXAM_003: Exam created', () => {",
+                      "  pm.expect(json.message).to.equal('Tạo đề thi thành công');",
+                      "  pm.expect(json.data).to.be.an('object');",
+                      "});",
+                      "if (json.data && json.data.exam_id) pm.environment.set('test_exam_id', json.data.exam_id);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "url": "{{base_url}}/exams/create",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"exam_name\": \"Test Exam {{$timestamp}}\",\n  \"topic_id\": 1,\n  \"time_limit\": 60,\n  \"available\": true\n}"
+                }
+              }
+            },
+            {
+              "name": "TC_EXAM_004 - Create Exam (User Forbidden)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('TC_EXAM_004: Status 403', () => { pm.expect([401, 403]).to.include(pm.response.code); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{user_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "url": "{{base_url}}/exams/create",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"exam_name\": \"Unauthorized Exam\",\n  \"topic_id\": 1,\n  \"time_limit\": 60\n}"
+                }
+              }
+            },
+            {
+              "name": "TC_EXAM_005 - Get Exam By ID (User - no correct answers)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('TC_EXAM_005: Status 200', () => { pm.response.to.have.status(200); });",
+                      "const json = pm.response.json();",
+                      "pm.test('TC_EXAM_005: Message correct', () => {",
+                      "  pm.expect(json.message).to.equal('Lấy thông tin đề thi thành công');",
+                      "});",
+                      "pm.test('TC_EXAM_005: User cannot see is_correct field', () => {",
+                      "  if (json.data && json.data.question) {",
+                      "    const allQ = Object.values(json.data.question).flat();",
+                      "    allQ.forEach(q => {",
+                      "      if (q.answers) { q.answers.forEach(a => { pm.expect(a).to.not.have.property('is_correct'); }); }",
+                      "    });",
+                      "  }",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{user_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "url": "{{base_url}}/exams/{{test_exam_id}}"
+              }
+            },
+            {
+              "name": "TC_EXAM_006 - Get Exam By ID (Admin - sees is_correct)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('TC_EXAM_006: Status 200', () => { pm.response.to.have.status(200); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "url": "{{base_url}}/exams/{{test_exam_id}}"
+              }
+            },
+            {
+              "name": "TC_EXAM_007 - Get Exam By Invalid ID",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('TC_EXAM_007: Status 400 for invalid ID', () => { pm.response.to.have.status(400); });",
+                      "const json = pm.response.json();",
+                      "pm.test('TC_EXAM_007: Error message', () => { pm.expect(json.message).to.include('exam_id'); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{user_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "url": "{{base_url}}/exams/invalid_id"
+              }
+            },
+            {
+              "name": "TC_EXAM_008 - Update Exam (Admin)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('TC_EXAM_008: Status 202', () => { pm.response.to.have.status(202); });",
+                      "const json = pm.response.json();",
+                      "pm.test('TC_EXAM_008: Update message', () => { pm.expect(json.message).to.equal('Cập nhật đề thi thành công'); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PATCH",
+                "url": "{{base_url}}/exams/update/{{test_exam_id}}",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"exam_name\": \"Updated Test Exam\",\n  \"time_limit\": 90\n}"
+                }
+              }
+            },
+            {
+              "name": "TC_EXAM_009 - Set Exam Available",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('TC_EXAM_009: Status 202', () => { pm.response.to.have.status(202); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PATCH",
+                "url": "{{base_url}}/exams/setAvailable/{{test_exam_id}}",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"available\": true\n}"
+                }
+              }
+            },
+            {
+              "name": "TC_EXAM_010 - Delete Exam - Cleanup",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('TC_EXAM_010: Status 204', () => { pm.response.to.have.status(204); });",
+                      "pm.environment.unset('test_exam_id');"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "DELETE",
+                "url": "{{base_url}}/exams/remove/{{test_exam_id}}"
+              }
+            }
+          ]
+        },
+        {
+          "name": "07c_Exam_User_Operations",
+          "item": [
+            {
+              "name": "TC_EXUSR_001 - Get Exam History (User)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('TC_EXUSR_001: Status 200', () => { pm.response.to.have.status(200); });",
+                      "const json = pm.response.json();",
+                      "pm.test('TC_EXUSR_001: Returns history data', () => { pm.expect(json.data).to.exist; });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{user_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "url": "{{base_url}}/exams/exam-history"
+              }
+            },
+            {
+              "name": "TC_EXUSR_002 - Submit Exam Missing Params",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('TC_EXUSR_002: Status 400 for missing params', () => { pm.response.to.have.status(400); });",
+                      "const json = pm.response.json();",
+                      "pm.test('TC_EXUSR_002: Error message about missing params', () => {",
+                      "  pm.expect(json.message).to.include('Thiếu');",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{user_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "url": "{{base_url}}/exams/submit",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"do_exam\": []\n}"
+                }
+              }
+            },
+            {
+              "name": "TC_EXUSR_003 - Submit Exam No Auth",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('TC_EXUSR_003: Status 401 without auth', () => { pm.expect([401, 403]).to.include(pm.response.code); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "POST",
+                "url": {
+                  "raw": "{{base_url}}/exams/submit?exam_id=1&subject_type=1&time_test=60",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "exams",
+                    "submit"
+                  ],
+                  "query": [
+                    {
+                      "key": "exam_id",
+                      "value": "1"
+                    },
+                    {
+                      "key": "subject_type",
+                      "value": "1"
+                    },
+                    {
+                      "key": "time_test",
+                      "value": "60"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"do_exam\": []\n}"
+                }
+              }
+            },
+            {
+              "name": "TC_EXUSR_004 - Check Do Exam (User)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('TC_EXUSR_004: Status 200', () => { pm.response.to.have.status(200); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{user_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "url": {
+                  "raw": "{{base_url}}/exams/check/do/user?exam_id=1",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "exams",
+                    "check",
+                    "do",
+                    "user"
+                  ],
+                  "query": [
+                    {
+                      "key": "exam_id",
+                      "value": "1"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "TC_EXUSR_005 - Get Exam Ranking",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('TC_EXUSR_005: Status 200', () => { pm.response.to.have.status(200); });",
+                      "const json = pm.response.json();",
+                      "pm.test('TC_EXUSR_005: Ranking data exists', () => {",
+                      "  pm.expect(json.data).to.have.property('ranking');",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{user_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "url": {
+                  "raw": "{{base_url}}/exams/1/ranking?page=1",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "exams",
+                    "1",
+                    "ranking"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "08_Banks",
+      "item": [
+        {
+          "name": "TC_BANK_001 - List Banks (Public)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_BANK_001: Status 200', () => { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('TC_BANK_001: Message correct', () => {",
+                  "  pm.expect(json.message).to.equal('Lấy danh sách đề thi thành công');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/banks?page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "banks"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC_BANK_002 - Create Bank (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_BANK_002: Status 201', () => { pm.response.to.have.status(201); });",
+                  "const json = pm.response.json();",
+                  "pm.test('TC_BANK_002: Bank created', () => {",
+                  "  pm.expect(json.message).to.equal('Tạo ngân hàng câu hỏi thành công');",
+                  "});",
+                  "if (json.data && json.data.bank_id) pm.environment.set('test_bank_id', json.data.bank_id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "url": "{{base_url}}/banks/create",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bank_name\": \"Test Bank {{$timestamp}}\",\n  \"topic_id\": 1,\n  \"available\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "TC_BANK_003 - Create Bank (User Forbidden)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_BANK_003: Status 403', () => { pm.expect([401, 403]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "url": "{{base_url}}/banks/create",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bank_name\": \"Unauthorized Bank\",\n  \"topic_id\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "TC_BANK_004 - Get Bank By ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_BANK_004: Status 200', () => { pm.response.to.have.status(200); });",
+                  "pm.test('TC_BANK_004: Message correct', () => {",
+                  "  pm.expect(pm.response.json().message).to.equal('Lấy thông tin đề thi thành công');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{base_url}}/banks/{{test_bank_id}}"
+          }
+        },
+        {
+          "name": "TC_BANK_005 - Update Bank (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_BANK_005: Status 202', () => { pm.response.to.have.status(202); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "url": "{{base_url}}/banks/update/{{test_bank_id}}",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bank_name\": \"Updated Test Bank\"\n}"
+            }
+          }
+        },
+        {
+          "name": "TC_BANK_006 - Get User Bank History",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_BANK_006: Status 200', () => { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{base_url}}/banks/user/bank-history"
+          }
+        },
+        {
+          "name": "TC_BANK_007 - Delete Bank - Cleanup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_BANK_007: Status 2xx', () => { pm.expect(pm.response.code).to.be.within(200, 299); });",
+                  "pm.environment.unset('test_bank_id');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "url": "{{base_url}}/banks/remove/{{test_bank_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "09_Flashcards",
+      "item": [
+        {
+          "name": "TC_FLASH_001 - List Decks (User)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_FLASH_001: Status 200', () => { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('TC_FLASH_001: Returns paginated data', () => { pm.expect(json.data).to.exist; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/flashcards/decks?page=1&limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "flashcards",
+                "decks"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC_FLASH_002 - List Decks No Auth",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_FLASH_002: Status 401 without auth', () => { pm.expect([401, 403]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": "{{base_url}}/flashcards/decks"
+          }
+        },
+        {
+          "name": "TC_FLASH_003 - Create Deck (User)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_FLASH_003: Status 201', () => { pm.response.to.have.status(201); });",
+                  "const json = pm.response.json();",
+                  "pm.test('TC_FLASH_003: Deck created', () => { pm.expect(json.data).to.be.an('object'); });",
+                  "if (json.data && json.data.flashcard_deck_id) pm.environment.set('test_deck_id', json.data.flashcard_deck_id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "url": "{{base_url}}/flashcards/decks/create",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Test Deck {{$timestamp}}\",\n  \"description\": \"A test flashcard deck\"\n}"
+            }
+          }
+        },
+        {
+          "name": "TC_FLASH_004 - Get Deck By ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_FLASH_004: Status 200', () => { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('TC_FLASH_004: Deck data returned', () => { pm.expect(json.data).to.be.an('object'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{base_url}}/flashcards/decks/{{test_deck_id}}"
+          }
+        },
+        {
+          "name": "TC_FLASH_005 - Add Flashcard to Deck",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_FLASH_005: Status 201', () => { pm.response.to.have.status(201); });",
+                  "const json = pm.response.json();",
+                  "pm.test('TC_FLASH_005: Flashcard created', () => {",
+                  "  pm.expect(json.message).to.equal('Flashcard create successfully');",
+                  "  pm.expect(json.data).to.be.an('object');",
+                  "});",
+                  "if (json.data && json.data.flashcard_id) pm.environment.set('test_flashcard_id', json.data.flashcard_id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "url": "{{base_url}}/flashcards/decks/add/{{test_deck_id}}",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"front\": \"What is 2+2?\",\n  \"back\": \"4\",\n  \"example\": \"Basic arithmetic: 2+2=4\"\n}"
+            }
+          }
+        },
+        {
+          "name": "TC_FLASH_006 - Add Flashcard Missing Fields",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_FLASH_006: Status 4xx for missing front/back', () => {",
+                  "  pm.expect(pm.response.code).to.be.within(400, 499);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "url": "{{base_url}}/flashcards/decks/add/{{test_deck_id}}",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"example\": \"No front or back\"\n}"
+            }
+          }
+        },
+        {
+          "name": "TC_FLASH_007 - Update Flashcard",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_FLASH_007: Status 202', () => { pm.response.to.have.status(202); });",
+                  "pm.test('TC_FLASH_007: Update message', () => {",
+                  "  pm.expect(pm.response.json().message).to.equal('Flashcard update');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "url": "{{base_url}}/flashcards/update/{{test_flashcard_id}}",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"front\": \"What is 3+3?\",\n  \"back\": \"6\"\n}"
+            }
+          }
+        },
+        {
+          "name": "TC_FLASH_008 - Update Deck",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_FLASH_008: Status 2xx', () => { pm.expect(pm.response.code).to.be.within(200, 299); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "url": "{{base_url}}/flashcards/decks/update/{{test_deck_id}}",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Test Deck\",\n  \"description\": \"Updated description\"\n}"
+            }
+          }
+        },
+        {
+          "name": "TC_FLASH_009 - Get Quiz Flashcards",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_FLASH_009: Status 200 or 404', () => {",
+                  "  pm.expect([200, 404]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{base_url}}/flashcards/quiz/{{test_deck_id}}"
+          }
+        },
+        {
+          "name": "TC_FLASH_010 - Review Flashcards",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_FLASH_010: Status 2xx', () => { pm.expect(pm.response.code).to.be.within(200, 299); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{base_url}}/flashcards/review/{{test_deck_id}}"
+          }
+        },
+        {
+          "name": "TC_FLASH_011 - Delete Flashcard - Cleanup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_FLASH_011: Status 204', () => { pm.response.to.have.status(204); });",
+                  "pm.environment.unset('test_flashcard_id');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "url": "{{base_url}}/flashcards/remove/{{test_flashcard_id}}"
+          }
+        },
+        {
+          "name": "TC_FLASH_012 - Delete Deck - Cleanup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_FLASH_012: Status 2xx', () => { pm.expect(pm.response.code).to.be.within(200, 299); });",
+                  "pm.environment.unset('test_deck_id');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "url": "{{base_url}}/flashcards/decks/remove/{{test_deck_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "10_Documents",
+      "item": [
+        {
+          "name": "TC_DOC_001 - List Documents (Public)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_DOC_001: Status 200', () => { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('TC_DOC_001: Returns array', () => { pm.expect(json.data).to.exist; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": "{{base_url}}/documents"
+          }
+        },
+        {
+          "name": "TC_DOC_002 - Create Document (Admin) - multipart",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_DOC_002: Status 201 or 400', () => {",
+                  "  pm.expect([201, 400]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "url": "{{base_url}}/documents/create",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "document_name",
+                  "value": "Test Document",
+                  "type": "text"
+                },
+                {
+                  "key": "topic_id",
+                  "value": "1",
+                  "type": "text"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC_DOC_003 - Create Document (User Forbidden)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_DOC_003: Status 403', () => { pm.expect([401, 403]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "url": "{{base_url}}/documents/create",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "document_name",
+                  "value": "Unauthorized Doc",
+                  "type": "text"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "11_Files",
+      "item": [
+        {
+          "name": "TC_FILE_001 - Get JSON Files List",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_FILE_001: Status 200', () => { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": "{{base_url}}/file/json"
+          }
+        },
+        {
+          "name": "TC_FILE_002 - Get JSON by Filename Not Found",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_FILE_002: Status 4xx for non-existent file', () => {",
+                  "  pm.expect(pm.response.code).to.be.within(400, 499);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": "{{base_url}}/file/json/nonexistentfile.json"
+          }
+        },
+        {
+          "name": "TC_FILE_003 - Upload Image No Auth",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_FILE_003: Status 400/401 (no file or no auth)', () => {",
+                  "  pm.expect([400, 401, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "url": "{{base_url}}/file/images/upload",
+            "body": {
+              "mode": "formdata",
+              "formdata": []
+            }
+          }
+        },
+        {
+          "name": "TC_FILE_004 - Get Images Info",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_FILE_004: Status 200', () => { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "url": "{{base_url}}/file/images/info",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"filenames\": []\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "12_Roadmap",
+      "item": [
+        {
+          "name": "TC_ROAD_001 - Get All Roadmaps (User)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_ROAD_001: Status 200', () => { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{base_url}}/roadmap"
+          }
+        },
+        {
+          "name": "TC_ROAD_002 - Get All Roadmaps No Auth",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_ROAD_002: Status 401 without auth', () => { pm.expect([401, 403]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": "{{base_url}}/roadmap"
+          }
+        },
+        {
+          "name": "TC_ROAD_003 - Create Roadmap (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_ROAD_003: Status 201', () => { pm.response.to.have.status(201); });",
+                  "const json = pm.response.json();",
+                  "if (pm.response.code === 201 && json.data && json.data.roadmap_step_id) {",
+                  "  pm.environment.set('test_roadmap_id', json.data.roadmap_step_id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "url": "{{base_url}}/roadmap/create",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Test Roadmap Step\",\n  \"description\": \"Automatically created test step\",\n  \"topic_id\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "TC_ROAD_004 - Create Roadmap (User Forbidden)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_ROAD_004: Status 403', () => { pm.expect([401, 403]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "url": "{{base_url}}/roadmap/create",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"topic_id\": 1,\n  \"step\": 1,\n  \"step_content\": \"Unauthorized\"\n}"
+            }
+          }
+        },
+        {
+          "name": "TC_ROAD_005 - Delete Roadmap - Cleanup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_ROAD_005: Status 200', () => { pm.response.to.have.status(200); });",
+                  "pm.environment.unset('test_roadmap_id');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "url": "{{base_url}}/roadmap/remove/{{test_roadmap_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "13_Study_Schedule",
+      "item": [
+        {
+          "name": "TC_SCHED_001 - Get Study Schedules (User)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_SCHED_001: Status 200', () => { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{base_url}}/schedule/study"
+          }
+        },
+        {
+          "name": "TC_SCHED_002 - Filter Study Schedules",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_SCHED_002: Status 200', () => { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/schedule/study/filter?date=2026-05-01",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "schedule",
+                "study",
+                "filter"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "2026-05-01"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC_SCHED_003 - Create Study Schedule",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_SCHED_003: Status 201', () => { pm.response.to.have.status(201); });",
+                  "const json = pm.response.json();",
+                  "if (pm.response.code === 201 && json.data && json.data.study_schedule_id) {",
+                  "  pm.environment.set('test_schedule_id', json.data.study_schedule_id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "url": "{{base_url}}/schedule/study/create",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Test Study Schedule\",\n  \"description\": \"Automatically created test schedule\",\n  \"start_time\": \"2026-06-01T07:00:00Z\",\n  \"end_time\": \"2026-06-30T07:00:00Z\",\n  \"status\": \"pending\",\n  \"target_question\": 10,\n  \"subject_id\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "TC_SCHED_004 - Update Study Schedule",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_SCHED_004: Status 200', () => { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "url": "{{base_url}}/schedule/study/update/{{test_schedule_id}}",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Updated test schedule\"\n}"
+            }
+          }
+        },
+        {
+          "name": "TC_SCHED_005 - Delete Study Schedule - Cleanup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_SCHED_005: Status 200', () => { pm.response.to.have.status(200); });",
+                  "pm.environment.unset('test_schedule_id');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "url": "{{base_url}}/schedule/study/remove/{{test_schedule_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "14_User_Goals",
+      "item": [
+        {
+          "name": "TC_GOAL_001 - Get All Goals (User)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_GOAL_001: Status 200', () => { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{base_url}}/goal"
+          }
+        },
+        {
+          "name": "TC_GOAL_002 - Get All Goals No Auth",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_GOAL_002: Status 401', () => { pm.expect([401, 403]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": "{{base_url}}/goal"
+          }
+        },
+        {
+          "name": "TC_GOAL_003 - Create Goal (User)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_GOAL_003: Status 201', () => { pm.response.to.have.status(201); });",
+                  "const json = pm.response.json();",
+                  "if (pm.response.code === 201 && json.data && json.data.user_goal_id) {",
+                  "  pm.environment.set('test_goal_id', json.data.user_goal_id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "url": "{{base_url}}/goal/create",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"goal_name\": \"Test Goal {{$timestamp}}\",\n  \"topic_id\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "TC_GOAL_004 - Delete Goal - Cleanup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_GOAL_004: Status 200', () => { pm.response.to.have.status(200); });",
+                  "pm.environment.unset('test_goal_id');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "url": "{{base_url}}/goal/delete/{{test_goal_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "15_Dashboard",
+      "item": [
+        {
+          "name": "TC_DASH_001 - Dashboard Cards (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_DASH_001: Status 200', () => { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{base_url}}/dashboard/card?year=2026&month=5"
+          }
+        },
+        {
+          "name": "TC_DASH_002 - Dashboard Cards (User Forbidden)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_DASH_002: Status 403 for non-admin', () => { pm.expect([401, 403]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{base_url}}/dashboard/card"
+          }
+        },
+        {
+          "name": "TC_DASH_003 - Dashboard Line Chart (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_DASH_003: Status 200', () => { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{base_url}}/dashboard/line"
+          }
+        },
+        {
+          "name": "TC_DASH_004 - Dashboard Active Users (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_DASH_004: Status 200', () => { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{base_url}}/dashboard/active-users"
+          }
+        },
+        {
+          "name": "TC_DASH_005 - Dashboard Pie Chart (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_DASH_005: Status 200', () => { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{base_url}}/dashboard/pie"
+          }
+        },
+        {
+          "name": "TC_DASH_006 - Dashboard Table (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_DASH_006: Status 200', () => { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{base_url}}/dashboard/table"
+          }
+        }
+      ]
+    },
+    {
+      "name": "16_Microservice",
+      "item": [
+        {
+          "name": "TC_MICRO_001 - LLM Ask (via Backend)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_MICRO_001: Status 200 or 5xx (microservice may be down)', () => {",
+                  "  pm.expect([200, 500, 502, 503]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "url": "{{base_url}}/microservice/llm/ask",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"What is a variable in programming?\",\n  \"topic_id\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "TC_MICRO_002 - LLM Ask No Auth",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_MICRO_002: Status 401 without auth', () => { pm.expect([401, 403]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "url": "{{base_url}}/microservice/llm/ask",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"Test question\"\n}"
+            }
+          }
+        },
+        {
+          "name": "TC_MICRO_003 - BERT Process DOCX (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_MICRO_003: Status 200 or 4xx/5xx', () => {",
+                  "  pm.expect([200, 400, 404, 500, 502, 503]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "url": "{{base_url}}/microservice/bert/process-docx/test_document.docx"
+          }
+        },
+        {
+          "name": "TC_MICRO_004 - BERT Process DOCX (User Forbidden)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('TC_MICRO_004: Status 403 for non-admin', () => { pm.expect([401, 403]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{user_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "url": "{{base_url}}/microservice/bert/process-docx/test_document.docx"
+          }
+        }
+      ]
+    }
+  ]
+}

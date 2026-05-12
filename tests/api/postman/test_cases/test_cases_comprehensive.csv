@@ -1,0 +1,134 @@
+Test case ID,File Name,Method name,Purpose,Input,Expected output
+TC_AUTH_001,Register - Success,POST /auth/register,Register new account successfully,"{""user_name"":""Test User"",""password"":""Test123!"",""email"":""test_<timestamp>@test.com""}","201: {status:201, message:""Registration successful"", data:{user:{user_name,email,...}, token:string}}"
+TC_AUTH_002,Register - Duplicate Email,POST /auth/register,Reject duplicate email already in the system,"{""user_name"":""User2"",""password"":""Test123!"",""email"":""admin@example.com""}","400: {status:400, message:""Email already exists. Please choose another email!""}"
+TC_AUTH_003,Register - Missing Required Fields,POST /auth/register,Validate required fields on registration,"{""user_name"":""No Email User""}",400-422: validation error
+TC_AUTH_004,Login - Success,POST /auth/login,Login successfully with valid credentials,"{""email"":""admin@example.com"",""password"":""admin123""}","200: {status:200, message:""Login successful"", data:{token:string, user:object, permissions:object}}"
+TC_AUTH_005,Login - Wrong Password,POST /auth/login,Reject when password is incorrect,"{""email"":""admin@example.com"",""password"":""wrongpassword""}","401: {status:401, message:""Incorrect password""}"
+TC_AUTH_006,Login - User Not Found,POST /auth/login,Return error when email does not exist,"{""email"":""notexist@example.com"",""password"":""anypassword""}","404: {status:404, message:""User not found""}"
+TC_AUTH_007,Login - Missing Credentials,POST /auth/login,Validate when body is empty,{},400-422: validation error
+TC_AUTH_008,Login - SQL Injection Attempt,POST /auth/login,Security: prevent SQL injection via email field,"{""email"":""admin' OR '1'='1"",""password"":""pass""}",400/401/404: no server error 500
+TC_USER_001,Get All Users - Admin,GET /users,Admin retrieves list of all users,Auth: admin_token; Query: page=1,"200: {status:200, data:{users:[...users], totalPages:number}}"
+TC_USER_002,Get All Users - User Forbidden,GET /users,Reject regular user from accessing user list,Auth: user_token,401/403: forbidden
+TC_USER_003,Get All Users - No Auth,GET /users,Reject request without token,No Auth,401: unauthorized
+TC_USER_004,Get User By ID - Valid,GET /users/:id,Get user info by valid ID,Auth: admin_token; Path: id=1,"200: {data:{user_name,email,...}} - password_hash not returned"
+TC_USER_005,Get User By ID - Not Found,GET /users/:id,Return error when ID does not exist,Auth: admin_token; Path: id=999999,404: not found
+TC_USER_006,Update Current User,PUT /users/update,User updates personal information,Auth: user_token; Body: {user_name:string},200/202: update successful
+TC_USER_007,Search Users by Keyword,GET /users,Search users by keyword,Auth: admin_token; Query: keyword=admin&page=1,200: {data:{users:[...filtered users]}}
+TC_ROLE_001,Get All Roles - Admin,GET /roles,Admin retrieves role list,Auth: admin_token,200: {data:[...roles]}
+TC_ROLE_002,Get All Roles - User Forbidden,GET /roles,Reject regular user from viewing roles,Auth: user_token,401/403: forbidden
+TC_ROLE_003,Get Role By ID - Admin,GET /roles/:id,Admin retrieves role info by ID,Auth: admin_token; Path: id=1,"200: {data:{role_id,role_name,...}}"
+TC_ROLE_004,Create Role - Admin,POST /roles/create,Admin creates new role,Auth: admin_token; Body: {role_name:string},"201: {message:""Role created successfully"", data:{role_id,...}}"
+TC_ROLE_005,Create Role - User Forbidden,POST /roles/create,Reject regular user from creating role,Auth: user_token; Body: {role_name:string},401/403: forbidden
+TC_SUBJ_001,Get All Subjects - Public,GET /subjects,Get subject list without auth,No auth,"200: {message:""Get subject list successful"", data:[...subjects]}"
+TC_SUBJ_002,Create Subject - Admin,POST /subjects/create,Admin creates new subject,Auth: admin_token; Body: {subject_name:string},"201: {message:""Subject created successfully"", data:{subject_id,...}}"
+TC_SUBJ_003,Create Subject - User Forbidden,POST /subjects/create,Reject regular user from creating subject,Auth: user_token; Body: {subject_name:string},401/403: forbidden
+TC_SUBJ_004,Create Subject - Missing Name,POST /subjects/create,Validate required subject_name field,Auth: admin_token; Body: {},400-422: validation error
+TC_SUBJ_005,Update Subject - Admin,PATCH /subjects/update/:id,Admin updates subject info,Auth: admin_token; Path: id; Body: {subject_name:string},"202: {message:""Subject updated successfully""}"
+TC_SUBJ_006,Set Subject Available - Admin,PATCH /subjects/setAvailable/:id,Admin toggles subject availability,Auth: admin_token; Path: id; Body: {available:false},"202: {message:""Subject availability changed successfully""}"
+TC_SUBJ_007,Delete Subject - Admin,DELETE /subjects/remove/:id,Admin deletes subject,Auth: admin_token; Path: id,"204: {message:""Subject deleted successfully""}"
+TC_SUBJ_008,Delete Non-existent Subject,DELETE /subjects/remove/:id,Handle deletion of non-existent subject,Auth: admin_token; Path: id=999999,200-404: graceful handling
+TC_TOPIC_001,Get All Topics,GET /topics,Get topic list,Auth: admin_token,200: {data:[...topics]}
+TC_TOPIC_002,Create Topic - Admin,POST /topics/create,Admin creates new topic,"Auth: admin_token; Body: {topic_name:string,subject_id:number}","201: {data:{topic_id,...}}"
+TC_TOPIC_003,Create Topic - User Forbidden,POST /topics/create,Reject regular user from creating topic,"Auth: user_token; Body: {topic_name:string,subject_id:1}",401/403: forbidden
+TC_TOPIC_004,Update Topic - Admin,PATCH /topics/update/:id,Admin updates topic,Auth: admin_token; Path: id; Body: {topic_name:string},200/202: update successful
+TC_TOPIC_005,Delete Topic - Admin,DELETE /topics/remove/:id,Admin deletes topic,Auth: admin_token; Path: id,200/204: delete successful
+TC_QUES_001,Get All Questions - Public,GET /questions,Get question list (max 100),No auth,200: {data:[...questions]}
+TC_QUES_002,Create Questions - Admin,POST /questions/create,Admin creates new questions (array),"Auth: admin_token; Body: [{question_content,question_type,topic_id,answers:[]}]",201: {data:[...created questions]}
+TC_QUES_003,Create Questions - User Forbidden,POST /questions/create,Reject regular user from creating question,Auth: user_token; Body: [{}],401/403: forbidden
+TC_QUES_004,Create Questions - Invalid Type,POST /questions/create,Validate invalid question_type,"Auth: admin_token; Body: [{question_type:99,...}]",400: validation error
+TC_QUES_005,Update Question - Admin,PATCH /questions/update/:id,Admin updates question,Auth: admin_token; Path: id; Body: {question_content:string},200/202: update successful
+TC_QUES_006,Set Question Available,PATCH /questions/setAvailable/:id,Admin toggles question availability,Auth: admin_token; Path: id; Body: {available:true},200/202: status changed successfully
+TC_QUES_007,Delete Question - Admin,DELETE /questions/remove/:id,Admin deletes question,Auth: admin_token; Path: id,200/204: delete successful
+TC_EXSCH_001,Get All Exam Schedules - Admin,GET /exams/schedule,Admin retrieves list of exam schedules,Auth: admin_token,200: {data:[...schedules]}
+TC_EXSCH_002,Get Exam Schedules - User Forbidden,GET /exams/schedule,Reject regular user from viewing all exam schedules,Auth: user_token,401/403: forbidden
+TC_EXSCH_003,Create Exam Schedule - Admin,POST /exams/schedule/create,Admin creates new exam schedule,"Auth: admin_token; Body: {schedule_name,start_time,end_time}","201: {data:{exam_schedule_id,...}}"
+TC_EXSCH_004,Create Exam Schedule - User Forbidden,POST /exams/schedule/create,Reject user from creating exam schedule,Auth: user_token,401/403: forbidden
+TC_EXSCH_005,Update Exam Schedule,PUT /exams/schedule/update/:id,Admin updates exam schedule,Auth: admin_token; Path: id; Body: {schedule_name},200/202: update successful
+TC_EXAM_001,List Exams - Public,GET /exams,Get exam list without auth,No auth; Query: page=1,"200: {message:""Get exam list successful""}"
+TC_EXAM_002,List Exams - With Filters,GET /exams,Filter exams by keyword and availability,Query: keyword=test&available=true&page=1,200: {data:[...filtered exams]}
+TC_EXAM_003,Create Exam - Admin,POST /exams/create,Admin creates new exam,"Auth: admin_token; Body: {exam_name,topic_id,time_limit}","201: {message:""Exam created successfully"", data:{exam_id,...}}"
+TC_EXAM_004,Create Exam - User Forbidden,POST /exams/create,Reject regular user from creating exam,Auth: user_token,401/403: forbidden
+TC_EXAM_005,Get Exam By ID - User,GET /exams/:id,User gets exam detail (is_correct hidden),Auth: user_token; Path: exam_id,200: {data:{question:...}} - is_correct not returned for user
+TC_EXAM_006,Get Exam By ID - Admin,GET /exams/:id,Admin gets exam detail (sees is_correct),Auth: admin_token; Path: exam_id,200: {data:{question:...}} - is_correct visible for admin
+TC_EXAM_007,Get Exam By Invalid ID,GET /exams/:id,Return error when ID is not a number,Auth: user_token; Path: invalid_id,"400: {message:""Invalid exam_id""}"
+TC_EXAM_008,Update Exam - Admin,PATCH /exams/update/:id,Admin updates exam,"Auth: admin_token; Path: id; Body: {exam_name,time_limit}","202: {message:""Exam updated successfully""}"
+TC_EXAM_009,Set Exam Available,PATCH /exams/setAvailable/:id,Admin toggles exam availability,Auth: admin_token; Path: id; Body: {available:true},"202: {message:""Exam availability changed successfully""}"
+TC_EXAM_010,Delete Exam - Admin,DELETE /exams/remove/:id,Admin deletes exam,Auth: admin_token; Path: id,"204: {message:""Exam deleted successfully""}"
+TC_EXUSR_001,Get Exam History - User,GET /exams/exam-history,User retrieves own exam submission history,Auth: user_token,"200: {message:""Exam history retrieved successfully"", data:[...history]}"
+TC_EXUSR_002,Submit Exam - Missing Params,POST /exams/submit,Return error when required query params are missing,Auth: user_token; Body: {do_exam:[]},"400: {message:""Missing params: exam_id, subject_type or time_test""}"
+TC_EXUSR_003,Submit Exam - No Auth,POST /exams/submit,Reject exam submission without auth,No auth; Query: exam_id=1&subject_type=1&time_test=60,401/403
+TC_EXUSR_004,Submit Exam - Invalid do_exam,POST /exams/submit,Reject when do_exam is not an array,"Auth: user_token; Query: exam_id=1&subject_type=1&time_test=60; Body: {do_exam:""string""}","400: {message:""Invalid do_exam data""}"
+TC_EXUSR_005,Check Do Exam Status,GET /exams/check/do/user,User checks whether they have already taken the exam,Auth: user_token; Query: exam_id=1,200: {data:{has_done:boolean}}
+TC_EXUSR_006,Get Exam Ranking,GET /exams/:id/ranking,Get exam ranking,Auth: user_token; Path: exam_id=1; Query: page=1,"200: {message:""Ranking retrieved successfully"", data:{ranking:[...]}}"
+TC_EXUSR_007,Get User Answer History,GET /exams/user-answer,Get user's exam answer history,Auth: user_token; Query: history_exam_id=1&exam_id=1,200: {data:{questions:{...}}} or 404 if not found
+TC_BANK_001,List Banks - Public,GET /banks,Get question bank list without auth,No auth; Query: page=1,"200: {message:""Get bank list successful""}"
+TC_BANK_002,Create Bank - Admin,POST /banks/create,Admin creates new question bank,"Auth: admin_token; Body: {bank_name,topic_id}","201: {message:""Question bank created successfully"", data:{bank_id,...}}"
+TC_BANK_003,Create Bank - User Forbidden,POST /banks/create,Reject user from creating question bank,Auth: user_token,401/403: forbidden
+TC_BANK_004,Get Bank By ID,GET /banks/:id,Get question bank detail,Auth: user_token; Path: bank_id,"200: {message:""Bank detail retrieved successfully""}"
+TC_BANK_005,Get Bank By Invalid ID,GET /banks/:id,Return error when ID is not a number,Auth: user_token; Path: invalid_id,"400: {message:""Invalid bank_id""}"
+TC_BANK_006,Update Bank - Admin,PATCH /banks/update/:id,Admin updates question bank,Auth: admin_token; Body: {bank_name},"202: {message:""Question bank updated successfully""}"
+TC_BANK_007,Set Bank Available,PATCH /banks/setAvailable/:id,Admin toggles bank availability,Auth: admin_token; Body: {available:true},200/202
+TC_BANK_008,Get User Bank History,GET /banks/user/bank-history,User views own bank practice history,Auth: user_token,200: {data:[...history]}
+TC_BANK_009,Submit Bank Practice - Missing Params,POST /banks/submit,Validate params on bank practice submission,Auth: user_token,400: validation error
+TC_BANK_010,Delete Bank - Admin,DELETE /banks/remove/:id,Admin deletes question bank,Auth: admin_token; Path: bank_id,200/204: delete successful
+TC_FLASH_001,List Decks - User,GET /flashcards/decks,User retrieves own flashcard decks (paginated),Auth: user_token; Query: page=1&limit=10,200: {data:[...decks]}
+TC_FLASH_002,List Decks - No Auth,GET /flashcards/decks,Reject request without auth,No auth,401/403
+TC_FLASH_003,Create Deck - User,POST /flashcards/decks/create,User creates new flashcard deck,"Auth: user_token; Body: {title,description}","201: {data:{flashcard_deck_id,...}}"
+TC_FLASH_004,Create Deck - Missing Title,POST /flashcards/decks/create,Validate required title field,"Auth: user_token; Body: {description:""test""}",400-422: validation error
+TC_FLASH_005,Get Deck By ID,GET /flashcards/decks/:id,Get deck detail and flashcard list,Auth: user_token; Path: deck_id,200: {data:{deck info + flashcards:[]}}
+TC_FLASH_006,Update Deck - Owner,PUT /flashcards/decks/update/:id,Deck owner updates their deck,"Auth: user_token (owner); Body: {title,description}",200/202
+TC_FLASH_007,Add Flashcard to Deck,POST /flashcards/decks/add/:id,Add flashcard to deck,"Auth: user_token; Path: deck_id; Body: {front,back,example}","201: {message:""Flashcard create successfully"", data:{flashcard_id,...}}"
+TC_FLASH_008,Add Flashcard - Missing Fields,POST /flashcards/decks/add/:id,Validate required front/back fields,"Auth: user_token; Body: {example:""test""}",400-422: validation error
+TC_FLASH_009,Update Flashcard - Owner,PUT /flashcards/update/:id,Flashcard owner updates flashcard content,"Auth: user_token; Body: {front,back}","202: {message:""Flashcard update""}"
+TC_FLASH_010,Update Flashcard - Not Found,PUT /flashcards/update/:id,Return error when flashcard does not exist,Auth: user_token; Path: id=999999,"404: {message:""Flashcard not found""}"
+TC_FLASH_011,Delete Flashcard,DELETE /flashcards/remove/:id,Delete flashcard,Auth: user_token; Path: flashcard_id,"204: {message:""Deleted successfully""}"
+TC_FLASH_012,Delete Flashcard - Not Found,DELETE /flashcards/remove/:id,Return error when deleting non-existent flashcard,Auth: user_token; Path: id=999999,"404: {message:""Flashcard not found""}"
+TC_FLASH_013,Get Quiz Flashcards,GET /flashcards/quiz/:id,Get flashcards for quiz (max 20),Auth: user_token; Path: deck_id,"200: {message:""Retrieved 20 flashcards for practice"", data:[...flashcards]}"
+TC_FLASH_014,Get Quiz - Invalid Deck ID,GET /flashcards/quiz/:id,Validate deck ID is not a number,Auth: user_token; Path: invalid_id,"400: {message:""Invalid deck ID""}"
+TC_FLASH_015,Submit Quiz Answers,PATCH /flashcards/quiz/submit,Submit quiz answers,"Auth: user_token; Body: {deck_id, answers:[...]}",200: {data:{...quiz results}}
+TC_FLASH_016,Review Flashcards,GET /flashcards/review/:id,Get flashcards for review,Auth: user_token; Path: deck_id,200: {data:[...flashcards to review]}
+TC_FLASH_017,Delete Deck - Owner,DELETE /flashcards/decks/remove/:id,Deck owner deletes their deck,Auth: user_token; Path: deck_id,200/204: delete successful
+TC_DOC_001,List Documents - Public,GET /documents,Get document list without auth,No auth,200: {data:[...documents]}
+TC_DOC_002,Create Document - Admin (multipart),POST /documents/create,Admin creates new document (file upload),Auth: admin_token; Body: multipart/form-data,201: document created or 400 if file missing
+TC_DOC_003,Create Document - User Forbidden,POST /documents/create,Reject user from creating document,Auth: user_token,401/403: forbidden
+TC_DOC_004,Update Document - Admin,PATCH /documents/update/:id,Admin updates document metadata,Auth: admin_token; Path: id; Body: {document_name},200/202: update successful
+TC_DOC_005,Set Document Available,PATCH /documents/setAvailable/:id,Admin shows/hides document,Auth: admin_token; Body: {available:false},200/202
+TC_DOC_006,Delete Document - Admin,DELETE /documents/remove/:id,Admin deletes document,Auth: admin_token; Path: id,200/204: delete successful
+TC_FILE_001,Get JSON Files List,GET /file/json,Get list of JSON files,No auth,200: {data:[...filenames]}
+TC_FILE_002,Get JSON by Filename - Found,GET /file/json/:filename,Get JSON file content by filename,No auth; Path: filename,200: file content
+TC_FILE_003,Get JSON by Filename - Not Found,GET /file/json/:filename,Return error when file does not exist,No auth; Path: nonexistent.json,404: not found
+TC_FILE_004,Upload Images - With Auth,POST /file/images/upload,Upload images (max 10),Auth: user_token; Body: multipart (files),200/201: uploaded filenames
+TC_FILE_005,Upload Images - No Auth,POST /file/images/upload,Reject upload without auth,No auth,400/401: no file or unauthorized
+TC_FILE_006,Get Images Info,POST /file/images/info,Get metadata of image list,No auth; Body: {filenames:[]},200: {data:[...image info]}
+TC_FILE_007,Get Signed Image URL - Auth,GET /file/images/signed/:filename,Get signed URL for image,Auth: user_token; Path: filename,200: {data:{signed_url:string}}
+TC_FILE_008,Get Signed Image URL - No Auth,GET /file/images/signed/:filename,Reject request without auth,No auth,401/403
+TC_ROAD_001,Get All Roadmaps - User,GET /roadmap,User retrieves roadmap list,Auth: user_token,200: {data:[...roadmaps]}
+TC_ROAD_002,Get All Roadmaps - No Auth,GET /roadmap,Reject request without auth,No auth,401/403
+TC_ROAD_003,Get Roadmap By ID - Admin,GET /roadmap/:id,Admin retrieves roadmap detail,Auth: admin_token; Path: id,200: {data:{roadmap details}}
+TC_ROAD_004,Create Roadmap - Admin,POST /roadmap/create,Admin creates roadmap step,"Auth: admin_token; Body: {title,description,topic_id}","201: {data:{roadmap_step_id,...}}"
+TC_ROAD_005,Create Roadmap - User Forbidden,POST /roadmap/create,Reject user from creating roadmap,Auth: user_token,401/403: forbidden
+TC_ROAD_006,Update Roadmap - Admin,PATCH /roadmap/update/:id,Admin updates roadmap step,"Auth: admin_token; Path: id; Body: {title,description}",200/202
+TC_ROAD_007,Delete Roadmap - Admin,DELETE /roadmap/remove/:id,Admin deletes roadmap step,Auth: admin_token; Path: id,200/204
+TC_SCHED_001,Get Study Schedules - User,GET /schedule/study,User retrieves own study schedule list,Auth: user_token,200: {data:[...schedules]}
+TC_SCHED_002,Filter Study Schedules,GET /schedule/study/filter,Filter study schedules by status,Auth: user_token; Query: status=pending,200: {data:[...filtered schedules]}
+TC_SCHED_003,Create Study Schedule,POST /schedule/study/create,Create new study schedule,"Auth: user_token; Body: {title,start_time,end_time,subject_id}","201: {data:{study_schedule_id,...}}"
+TC_SCHED_004,Update Study Schedule,PUT /schedule/study/update/:id,Update study schedule,Auth: user_token; Path: id; Body: {title},200/202
+TC_SCHED_005,Delete Study Schedule,DELETE /schedule/study/remove/:id,Delete study schedule,Auth: user_token; Path: id,200/204
+TC_GOAL_001,Get User Goals - Auth,GET /goal,User retrieves own goal list,Auth: user_token,200: {data:[...goals]}
+TC_GOAL_002,Get User Goals - No Auth,GET /goal,Reject request without auth,No auth,401/403
+TC_GOAL_003,Create User Goal,POST /goal/create,Create new learning goal,"Auth: user_token; Body: {goal_name,topic_id}","201: {data:{user_goal_id,...}}"
+TC_GOAL_004,Create Goal - Missing Fields,POST /goal/create,Validate required fields,Auth: user_token; Body: {},400-422: validation error
+TC_GOAL_005,Delete User Goal,DELETE /goal/delete/:id,Delete learning goal,Auth: user_token; Path: goal_id,200/204: delete successful
+TC_DASH_001,Dashboard Cards - Admin,GET /dashboard/card,Admin views overview statistics,Auth: admin_token; Query: year=2026&month=5,"200: {data:{totalUsers,...}}"
+TC_DASH_002,Dashboard Cards - User Forbidden,GET /dashboard/card,Reject regular user from viewing dashboard,Auth: user_token; Query: year=2026&month=5,401/403: forbidden
+TC_DASH_003,Dashboard Cards - No Auth,GET /dashboard/card,Reject request without auth,No auth,401/403
+TC_DASH_004,Dashboard Line Chart - Admin,GET /dashboard/line,Admin views line chart,Auth: admin_token,200: {data:{...line chart data}}
+TC_DASH_005,Dashboard Active Users - Admin,GET /dashboard/active-users,Admin views active user stats,Auth: admin_token,200: {data:{...active user stats}}
+TC_DASH_006,Dashboard Pie Chart - Admin,GET /dashboard/pie,Admin views pie chart,Auth: admin_token,200: {data:{...pie chart data}}
+TC_DASH_007,Dashboard Table - Admin,GET /dashboard/table,Admin views detailed statistics table,Auth: admin_token,200: {data:{...table data}}
+TC_MICRO_001,LLM Ask - With Auth,POST /microservice/llm/ask,User asks AI chatbot via backend,"Auth: user_token; Body: {question,topic_id}",200: {data:{answer:string}} or 5xx if microservice offline
+TC_MICRO_002,LLM Ask - No Auth,POST /microservice/llm/ask,Reject request without auth,No auth,401/403
+TC_MICRO_003,LLM Ask - Empty Question,POST /microservice/llm/ask,Validate question is not empty,"Auth: user_token; Body: {question:""""}",400: validation error
+TC_MICRO_004,BERT Process DOCX - Admin,POST /microservice/bert/process-docx/:filename,Admin processes DOCX file via BERT,Auth: admin_token; Path: filename,200: processed or 404/500 if file/service unavailable
+TC_MICRO_005,BERT Process DOCX - User Forbidden,POST /microservice/bert/process-docx/:filename,Reject regular user from using BERT endpoint,Auth: user_token,401/403: forbidden
+TC_MICRO_006,LLM Vectorize - Admin,POST /microservice/llm/vectorize,Vectorize documents into vector store,No auth required; Body: {files:[]},200: vectorization result or error
