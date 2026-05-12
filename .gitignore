@@ -41,6 +41,7 @@ appium_tests/reports/
 .idea/
 .vscode/
 .gitnexus
+.claude
 
 AGENTS.md 
 CLAUDE.md 

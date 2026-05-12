@@ -3,7 +3,13 @@
     "allow": [
       "Bash(docker exec postgres-pgvector:*)",
       "Bash(grep -E \"\\\\.\\(ts|tsx|js\\)$\")",
-      "Bash(grep -A 5 \"duration\\\\|timeout\\\\|5.*minute\\\\|warn.*time\" /Users/nhn/Documents/Code/datn_workspace/frontend_user/src/app/exam/[id]/do/page.tsx)"
+      "Bash(grep -A 5 \"duration\\\\|timeout\\\\|5.*minute\\\\|warn.*time\" /Users/nhn/Documents/Code/datn_workspace/frontend_user/src/app/exam/[id]/do/page.tsx)",
+      "Bash(git pull *)",
+      "Bash(node run_tests.js)",
+      "Bash(python3 *)",
+      "Bash(curl -s -X POST http://localhost:3000/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"admin@example.com\",\"password\":\"admin123\"}')",
+      "Bash(curl -s -X POST http://localhost:3000/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"user1@example.com\",\"password\":\"User123!\"}')",
+      "Bash(npx jest *)"
     ]
   }
 }
