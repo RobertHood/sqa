@@ -7,9 +7,9 @@ import FormData from "form-data";
 import AdmZip from "adm-zip";
 
 
-const PYTHON_LLM_URL = "http://localhost:8000/llm/ask";
-const VECTORIZE_URL = "http://localhost:8000/llm/vectorize";
-const DOCX_PROCESS_URL = "http://localhost:8000/bert/process-docx";
+const PYTHON_LLM_URL = process.env.PYTHON_LLM_URL || "http://localhost:8000/llm/ask";
+const VECTORIZE_URL = process.env.VECTORIZE_URL || "http://localhost:8000/llm/vectorize";
+const DOCX_PROCESS_URL = process.env.DOCX_PROCESS_URL || "http://localhost:8000/bert/process-docx";
 
 const MicroserviceController = {
   async askLLM(req: Request, res: Response) {

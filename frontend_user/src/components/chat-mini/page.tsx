@@ -44,12 +44,17 @@ export default function MiniChat() {
         setLoading(true);
 
         try {
+            const headers: Record<string, string> = {
+                "Content-Type": "application/json",
+            };
+
+            if (token) {
+                headers.Authorization = `Bearer ${token}`;
+            }
+
             const res = await fetch(`${API_URL}/microservice/llm/ask`, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
-                },
+                headers,
                 body: JSON.stringify({
                     question: userMsg.text,
                 }),
