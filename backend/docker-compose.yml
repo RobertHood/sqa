@@ -36,13 +36,13 @@ services:
 
   microservice:
     build:
-      context: ./microservice
+      context: ../microservice
       dockerfile: Dockerfile
     container_name: microservice
     ports:
       - "8000:8000"
     volumes:
-      - ./microservice:/app
+      - ../microservice:/app
       - ./BE/resources:/app/resources
     depends_on:
       - postgres
